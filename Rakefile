@@ -31,6 +31,12 @@ Spec::Rake::SpecTask.new(:rcov) do |spec|
   spec.rcov = true
 end
 
+require 'rake/testtask'
+Rake::TestTask.new do |test|
+  test.libs << 'lib' << 'test'
+  test.pattern = 'test/**/*_test.rb'
+end
+
 task :spec => :check_dependencies
 
 task :default => :spec
