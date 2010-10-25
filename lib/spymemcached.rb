@@ -29,8 +29,9 @@ class Spymemcached
   end
 
 
-  def initialize(servers, transcoder = RubyTranscoder.new)
+  def initialize(servers, options = {}, transcoder = RubyTranscoder.new)
     @transcoder = transcoder
+    @options = options
     @client     = MemcachedClient.new(servers.map do |s|
       host, port = s.split(":")
       InetSocketAddress.new(host, port.to_i)
@@ -85,6 +86,10 @@ class Spymemcached
 
   def flush
     @client.flush
+  end
+
+  def shutdown
+    @client.shutdown
   end
 
   private
