@@ -3,6 +3,8 @@ require "spymemcached/memcached-2.5.jar"
 
 class Spymemcached
   java_import "net.spy.memcached.MemcachedClient"
+  java_import "net.spy.memcached.BinaryConnectionFactory"
+  java_import "net.spy.memcached.DefaultConnectionFactory"
   java_import "net.spy.memcached.transcoders.Transcoder"
   java_import "net.spy.memcached.CachedData"
   java_import "java.net.InetSocketAddress"
@@ -32,6 +34,12 @@ class Spymemcached
   def initialize(servers, options = {}, transcoder = RubyTranscoder.new)
     @transcoder = transcoder
     @options = options
+
+    conn_factory = if options[:binary_protocol]
+                     BinaryConnectionFactory.new
+                   else
+                     DefaultConnectionFactory.new
+                   end
     @client     = MemcachedClient.new(servers.map do |s|
       host, port = s.split(":")
       InetSocketAddress.new(host, port.to_i)
