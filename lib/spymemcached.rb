@@ -5,6 +5,7 @@ class Spymemcached
   java_import "net.spy.memcached.MemcachedClient"
   java_import "net.spy.memcached.BinaryConnectionFactory"
   java_import "net.spy.memcached.DefaultConnectionFactory"
+  java_import "net.spy.memcached.ops.OperationException"
   java_import "net.spy.memcached.transcoders.Transcoder"
   java_import "net.spy.memcached.CachedData"
   java_import "java.net.InetSocketAddress"
@@ -40,10 +41,12 @@ class Spymemcached
                    else
                      DefaultConnectionFactory.new
                    end
-    @client     = MemcachedClient.new(servers.map do |s|
+    @servers = servers
+    @servers_in_java = servers.map do |s|
       host, port = s.split(":")
       InetSocketAddress.new(host, port.to_i)
-    end)
+    end
+    @client     = MemcachedClient.new(@servers_in_java)
   end
 
   def async_set(key, value, expiration = 0, raw = false)
@@ -96,6 +99,34 @@ class Spymemcached
     @client.flush
   end
 
+  # Return a Hash of statistics responses from the set of servers. Each value is an array with one entry for each server, in the same order the servers were defined.
+  def stats(subcommand = nil)
+    stats = Hash.new([])
+    raw_stats = @client.getStats
+    keys = raw_stats.get(raw_stats.keySet.first).keySet
+
+    @servers_in_java.each do |host|
+      host_stats = raw_stats[host]
+      keys.each do |key|
+        value = host_stats[key]
+        value = case value
+           when /^\d+\.\d+$/ then value.to_f
+           when /^\d+$/ then value.to_i
+           else value
+         end
+
+         stats[key.to_sym] += [value]
+      end
+    end
+
+    stats
+  rescue OperationException => _ # was: rescue Spymemcached::SomeErrorsWereReported => _
+    e = _.class.new(e.getType, "Error getting stats")
+    e.set_backtrace(_.backtrace)
+    raise e
+  end
+
+  # Shutdown the connection pool. (Not the remote server, natch.)
   def shutdown
     @client.shutdown
   end
